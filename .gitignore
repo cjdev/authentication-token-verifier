@@ -1,0 +1,6 @@
+# IntelliJ stuff
+/.idea
+/authentication-token-verifier.iml
+
+# Build products
+/target
