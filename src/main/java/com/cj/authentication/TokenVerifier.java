@@ -10,6 +10,13 @@ import java.time.Clock;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * An implementation of {@link AbstractTokenVerifier} that automatically fetches public keys from a remote location,
+ * using {@code https://io.cj.com/public-keys} as the default location. Creating an instance of {@link TokenVerifier}
+ * automatically spawns a background thread that will periodically (hourly) refresh the set of public keys from the
+ * remote source. You should construct a {@link TokenVerifier} in a try-with-resources block to ensure that the
+ * background thread is automatically shut down when the instance goes out of scope.
+ */
 public final class TokenVerifier extends AbstractTokenVerifier implements AutoCloseable {
   private static final long REFRESH_INTERVAL = 60L * 60L * 1000L; // 1 hour in ms
   private static final URL CJ_IO_URL;
@@ -23,7 +30,6 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   }
 
   private final URL keySetUrl;
-  private final Thread refreshKeysThread;
   private final Object refreshKeysMonitor = new Object();
   private volatile boolean refreshShouldStop = false;
   private volatile AtomicInteger numSuccessiveRefreshFailures = new AtomicInteger(0);
@@ -32,9 +38,21 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
 
   private volatile JWKSet keySet;
 
+  /**
+   * Creates a token verifier that fetches keys from the provided URL.
+   *
+   * @param keySetUrl full HTTP URL to fetch keys from
+   */
   public TokenVerifier(URL keySetUrl) {
     this.keySetUrl = keySetUrl;
-    this.refreshKeysThread = new Thread(() -> {
+
+    try {
+      this.keySet = fetchPublicKeys();
+    } catch (IOException | ParseException e) {
+      throw new RuntimeException("Error when performing initial fetch of public keys", e);
+    }
+
+    Thread refreshKeysThread = new Thread(() -> {
       synchronized (refreshKeysMonitor) {
         while (!refreshShouldStop) {
           try {
@@ -51,16 +69,14 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
         }
       }
     });
-    this.refreshKeysThread.setDaemon(true);
-    this.refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
-    this.refreshKeysThread.start();
-    try {
-      this.keySet = fetchPublicKeys();
-    } catch (IOException | ParseException e) {
-      throw new RuntimeException("Error when performing initial fetch of public keys", e);
-    }
+    refreshKeysThread.setDaemon(true);
+    refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
+    refreshKeysThread.start();
   }
 
+  /**
+   * Creates a token verifier that fetches keys from the default location, {@code https://io.cj.com/public-keys}.
+   */
   public TokenVerifier() {
     this(CJ_IO_URL);
   }

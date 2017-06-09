@@ -16,6 +16,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * An abstract class that implements verification of an RSA-signed JWT string encoded with the compact encoding. For an
+ * implementation of this class that automatically fetches the CJ-provided public keys (and periodically updates them in
+ * the background), see {@link TokenVerifier}.
+ */
 public abstract class AbstractTokenVerifier {
   static {
     Security.addProvider(new BouncyCastleProvider());
