@@ -1,50 +1,101 @@
 package com.cj.authentication;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Clock;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureException;
-import io.jsonwebtoken.UnsupportedJwtException;
-import io.jsonwebtoken.impl.DefaultClock;
+import com.nimbusds.jose.jwk.JWKSet;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.text.ParseException;
+import java.time.Clock;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public final class TokenVerifier {
-  /**
-   * Verifies and decodes a JWT representing a bearer token.
-   *
-   * If a token is properly formatted, correctly signed, and has not expired, then this function
-   * will return a decoded {@link Token}. Otherwise, it will return an empty {@link Optional}.
-   *
-   * @param secret the secret used to sign and verify tokens
-   * @param tokenString the signed, base 64 encoded JWT
-   * @return a decoded token or nothing
-   */
-  public static Optional<Token> verifyTokenString(String secret, String tokenString) {
-    return verifyTokenStringWithClock(secret, tokenString, DefaultClock.INSTANCE);
-  }
+public final class TokenVerifier extends AbstractTokenVerifier implements AutoCloseable {
+  private static final long REFRESH_INTERVAL = 60L * 60L * 1000L; // 1 hour in ms
+  private static final URL CJ_IO_URL;
 
-  static Optional<Token> verifyTokenStringWithClock(String secret, String tokenString, Clock clock) {
+  static {
     try {
-      Claims claims = Jwts.parser()
-              .setClock(clock)
-              .setSigningKey(secret.getBytes())
-              .parseClaimsJws(tokenString)
-              .getBody();
-
-      Object appId = claims.get("appId");
-      Object userId = claims.get("userId");
-      if (!(appId instanceof String)
-              || (userId != null && !(userId instanceof String))) {
-        return Optional.empty();
-      }
-
-      return Optional.of(new Token((String) appId, Optional.ofNullable((String) userId)));
-    } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException | SignatureException | IllegalArgumentException e) {
-      return Optional.empty();
+      CJ_IO_URL = new URL("https://io.cj.com/public-keys");
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
     }
   }
 
-  private TokenVerifier() {}
+  private final URL keySetUrl;
+  private final Thread refreshKeysThread;
+  private final Object refreshKeysMonitor = new Object();
+  private volatile boolean refreshShouldStop = false;
+  private volatile AtomicInteger numSuccessiveRefreshFailures = new AtomicInteger(0);
+  private volatile Throwable uncaughtRefreshException;
+  private volatile Exception lastRefreshException;
+
+  private volatile JWKSet keySet;
+
+  public TokenVerifier(URL keySetUrl) {
+    this.keySetUrl = keySetUrl;
+    this.refreshKeysThread = new Thread(() -> {
+      synchronized (refreshKeysMonitor) {
+        while (!refreshShouldStop) {
+          try {
+            refreshKeysMonitor.wait(REFRESH_INTERVAL);
+          } catch (InterruptedException e) {
+            continue;
+          }
+          try {
+            keySet = fetchPublicKeys();
+          } catch (IOException | ParseException e) {
+            lastRefreshException = e;
+            numSuccessiveRefreshFailures.incrementAndGet();
+          }
+        }
+      }
+    });
+    this.refreshKeysThread.setDaemon(true);
+    this.refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
+    this.refreshKeysThread.start();
+    try {
+      this.keySet = fetchPublicKeys();
+    } catch (IOException | ParseException e) {
+      throw new RuntimeException("Error when performing initial fetch of public keys", e);
+    }
+  }
+
+  public TokenVerifier() {
+    this(CJ_IO_URL);
+  }
+
+  private JWKSet fetchPublicKeys() throws IOException, ParseException {
+    return JWKSet.load(keySetUrl);
+  }
+
+  @Override
+  protected JWKSet getPublicKeys() {
+    return keySet;
+  }
+
+  @Override
+  public Optional<Token> verifyTokenStringWithClock(String tokenString, Clock clock) {
+    if (uncaughtRefreshException != null) {
+      throw new RuntimeException("Uncaught internal error when fetching public keys", uncaughtRefreshException);
+    }
+    if (numSuccessiveRefreshFailures.get() >= 5) {
+      throw new RuntimeException("Too many successive failures fetching public keys", lastRefreshException);
+    }
+    return super.verifyTokenStringWithClock(tokenString, clock);
+  }
+
+  @Override
+  protected void finalize() throws Throwable {
+    this.close();
+    super.finalize();
+  }
+
+  @Override
+  public void close() {
+    synchronized (refreshKeysMonitor) {
+      refreshShouldStop = true;
+      refreshKeysMonitor.notifyAll();
+    }
+  }
 }
