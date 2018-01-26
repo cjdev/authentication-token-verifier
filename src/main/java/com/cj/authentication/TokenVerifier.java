@@ -19,11 +19,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class TokenVerifier extends AbstractTokenVerifier implements AutoCloseable {
   private static final long REFRESH_INTERVAL = 60L * 60L * 1000L; // 1 hour in ms
-  private static final URL CJ_IO_URL;
+  private static final URL CJ_IO_URL_PUBLIC_KEYS;
+  private static final URL TOKEN_VERIFY_URL;
 
   static {
     try {
-      CJ_IO_URL = new URL("https://io.cj.com/public-keys");
+      CJ_IO_URL_PUBLIC_KEYS = new URL("https://io.cj.com/public-keys");
+      TOKEN_VERIFY_URL = new URL("https://production-iam.p.cjpowered.com/token/verify");
     } catch (MalformedURLException e) {
       throw new RuntimeException(e);
     }
@@ -43,7 +45,8 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
    *
    * @param keySetUrl full HTTP URL to fetch keys from
    */
-  public TokenVerifier(URL keySetUrl) {
+  public TokenVerifier(URL keySetUrl, PersonalAccessTokenFetcher personalAccessTokenFetcher) {
+    super(personalAccessTokenFetcher);
     this.keySetUrl = keySetUrl;
 
     try {
@@ -74,11 +77,19 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
     refreshKeysThread.start();
   }
 
+  public TokenVerifier(URL keySetUrl, URL tokenVerifyUrl) {
+    this(keySetUrl, new PersonalAccessTokenReal(tokenVerifyUrl));
+  }
+
   /**
    * Creates a token verifier that fetches keys from the default location, {@code https://io.cj.com/public-keys}.
    */
-  public TokenVerifier() {
-    this(CJ_IO_URL);
+  public TokenVerifier(URL keySetUrl) {
+    this(keySetUrl, new PersonalAccessTokenReal(TOKEN_VERIFY_URL));
+  }
+
+  public TokenVerifier(){
+    this(CJ_IO_URL_PUBLIC_KEYS, new PersonalAccessTokenReal(TOKEN_VERIFY_URL));
   }
 
   private JWKSet fetchPublicKeys() throws IOException, ParseException {

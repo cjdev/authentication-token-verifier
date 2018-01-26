@@ -9,6 +9,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import javax.swing.text.html.Option;
 import java.security.Security;
 import java.text.ParseException;
 import java.time.Clock;
@@ -24,6 +25,12 @@ import java.util.stream.Collectors;
 public abstract class AbstractTokenVerifier {
   static {
     Security.addProvider(new BouncyCastleProvider());
+  }
+
+  private final PersonalAccessTokenFetcher personalAccessTokenFetcher;
+
+  public AbstractTokenVerifier(PersonalAccessTokenFetcher personalAccessTokenFetcher){
+    this.personalAccessTokenFetcher = personalAccessTokenFetcher;
   }
 
   protected abstract JWKSet getPublicKeys();
@@ -66,8 +73,19 @@ public abstract class AbstractTokenVerifier {
       }
       return Optional.empty();
     } catch (ParseException e) {
-      return Optional.empty();
+      return verifyPersonalAccessToken(tokenString);
     }
+  }
+
+  public Optional<Token> verifyPersonalAccessToken(String tokenString){
+    Optional<String> userId = personalAccessTokenFetcher.getPersonalAccessToken(tokenString);
+    Optional<Token> token;
+    if(userId.isPresent())
+      token = Optional.of(new Token(Optional.empty(), userId));
+    else
+      token = Optional.empty();
+
+    return token;
   }
 
   private Optional<Token> verifyClaimsSet(JWTClaimsSet claims, Clock clock) {
@@ -81,6 +99,6 @@ public abstract class AbstractTokenVerifier {
       return Optional.empty();
     }
 
-    return Optional.of(new Token((String) appId, Optional.ofNullable((String) userId)));
+    return Optional.of(new Token((Optional.ofNullable((String) appId)), Optional.ofNullable((String) userId)));
   }
 }

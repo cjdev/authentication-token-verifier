@@ -3,10 +3,10 @@ package com.cj.authentication;
 import java.util.Optional;
 
 public final class Token {
-  public final String appId;
+  public final Optional<String> appId;
   public final Optional<String> userId;
 
-  public Token(String appId, Optional<String> userId) {
+  public Token(Optional<String> appId, Optional<String> userId) {
     this.appId = appId;
     this.userId = userId;
   }
