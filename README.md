@@ -24,4 +24,4 @@ Now you can call `TokenVerifier#verifyTokenString` to verify a token. If the tok
 
 For an example project that uses this library, see [authentication-token-sample-consumer][].
 
-[authentication-token-sample-consumer]: http://gitlab.cj.com/apis-partnerships/authentication-token-sample-consumer
+[authentication-token-sample-consumer]: http://github.com/cjdev/authentication-token-sample-consumer
