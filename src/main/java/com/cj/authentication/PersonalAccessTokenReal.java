@@ -1,6 +1,7 @@
 package com.cj.authentication;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -32,7 +33,7 @@ public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher{
     public static Optional<JSONObject> urlToJson(URL url, String tokenString) {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         HttpGet httpget = new HttpGet(url.toString());
-        httpget.addHeader("authorization", "Bearer " + tokenString);
+        httpget.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenString);
         try {
             ResponseHandler<Optional<JSONObject>> responseHandler = response -> {
                 int status = response.getStatusLine().getStatusCode();
@@ -46,7 +47,6 @@ public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher{
                 }
             };
             return httpclient.execute(httpget, responseHandler);
-
         } catch (IOException e) {
             return Optional.empty();
         }

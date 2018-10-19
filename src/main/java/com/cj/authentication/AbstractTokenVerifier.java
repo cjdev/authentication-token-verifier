@@ -9,7 +9,6 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import javax.swing.text.html.Option;
 import java.security.Security;
 import java.text.ParseException;
 import java.time.Clock;
