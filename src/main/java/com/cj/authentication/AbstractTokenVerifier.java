@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * implementation of this class that automatically fetches the CJ-provided public keys (and periodically updates them in
  * the background), see {@link TokenVerifier}.
  */
-public abstract class AbstractTokenVerifier {
+public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
   static {
     Security.addProvider(new BouncyCastleProvider());
   }
