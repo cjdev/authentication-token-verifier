@@ -41,6 +41,8 @@ public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
             .collect(Collectors.toList());
   }
 
+  public abstract void init();
+
   /**
    * Verifies and decodes a JWT representing a bearer token.
    *

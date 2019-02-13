@@ -14,4 +14,6 @@ public class StaticTokenVerifier extends AbstractTokenVerifier {
   protected JWKSet getPublicKeys() {
     return publicKeys;
   }
+
+  public void init() {}
 }

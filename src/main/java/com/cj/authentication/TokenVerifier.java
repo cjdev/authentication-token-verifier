@@ -39,6 +39,7 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   private volatile Exception lastRefreshException;
 
   private volatile JWKSet keySet;
+  private boolean isInitialized = false;
 
   /**
    * Creates a token verifier that fetches keys from the provided URL.
@@ -48,33 +49,6 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   public TokenVerifier(URL keySetUrl, PersonalAccessTokenFetcher personalAccessTokenFetcher) {
     super(personalAccessTokenFetcher);
     this.keySetUrl = keySetUrl;
-
-    try {
-      this.keySet = fetchPublicKeys();
-    } catch (IOException | ParseException e) {
-      throw new RuntimeException("Error when performing initial fetch of public keys", e);
-    }
-
-    Thread refreshKeysThread = new Thread(() -> {
-      synchronized (refreshKeysMonitor) {
-        while (!refreshShouldStop) {
-          try {
-            refreshKeysMonitor.wait(REFRESH_INTERVAL);
-          } catch (InterruptedException e) {
-            continue;
-          }
-          try {
-            keySet = fetchPublicKeys();
-          } catch (IOException | ParseException e) {
-            lastRefreshException = e;
-            numSuccessiveRefreshFailures.incrementAndGet();
-          }
-        }
-      }
-    });
-    refreshKeysThread.setDaemon(true);
-    refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
-    refreshKeysThread.start();
   }
 
   public TokenVerifier(URL keySetUrl, URL tokenVerifyUrl) {
@@ -99,6 +73,42 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   @Override
   protected JWKSet getPublicKeys() {
     return keySet;
+  }
+
+  /**
+   * Initializes the TokenVerifier and spawns a background thread to refresh public keys. After the first call to this
+   * method, subsequent calls will have no effect.
+   */
+  public void init() {
+    if (!isInitialized) {
+      try {
+        this.keySet = fetchPublicKeys();
+      } catch (IOException | ParseException e) {
+        throw new RuntimeException("Error when performing initial fetch of public keys", e);
+      }
+
+      Thread refreshKeysThread = new Thread(() -> {
+        synchronized (refreshKeysMonitor) {
+          while (!refreshShouldStop) {
+            try {
+              refreshKeysMonitor.wait(REFRESH_INTERVAL);
+            } catch (InterruptedException e) {
+              continue;
+            }
+            try {
+              keySet = fetchPublicKeys();
+            } catch (IOException | ParseException e) {
+              lastRefreshException = e;
+              numSuccessiveRefreshFailures.incrementAndGet();
+            }
+          }
+        }
+      });
+      refreshKeysThread.setDaemon(true);
+      refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
+      refreshKeysThread.start();
+      isInitialized = true;
+    }
   }
 
   @Override
