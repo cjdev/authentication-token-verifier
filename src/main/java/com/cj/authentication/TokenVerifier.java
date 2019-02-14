@@ -31,6 +31,7 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
     }
   }
 
+  private volatile boolean isInitialized = false;
   private final URL keySetUrl;
   private final Object refreshKeysMonitor = new Object();
   private volatile boolean refreshShouldStop = false;
@@ -39,7 +40,6 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   private volatile Exception lastRefreshException;
 
   private volatile JWKSet keySet;
-  private boolean isInitialized = false;
 
   /**
    * Creates a token verifier that fetches keys from the provided URL.
@@ -81,9 +81,11 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
    */
   public void init() {
     if (!isInitialized) {
+      isInitialized = true;
       try {
         this.keySet = fetchPublicKeys();
       } catch (IOException | ParseException e) {
+        isInitialized = false;
         throw new RuntimeException("Error when performing initial fetch of public keys", e);
       }
 
@@ -107,7 +109,6 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
       refreshKeysThread.setDaemon(true);
       refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
       refreshKeysThread.start();
-      isInitialized = true;
     }
   }
 
