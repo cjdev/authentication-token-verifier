@@ -99,6 +99,7 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
             }
             try {
               keySet = fetchPublicKeys();
+              numSuccessiveRefreshFailures.set(0);
             } catch (IOException | ParseException e) {
               lastRefreshException = e;
               numSuccessiveRefreshFailures.incrementAndGet();
