@@ -53,32 +53,20 @@ public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
    * @return a decoded token or nothing
    */
   public Optional<Token> verifyTokenString(String tokenString) {
-    return verifyTokenStringWithClock(tokenString, Clock.systemUTC());
-  }
-
-  public Optional<Token> verifyTokenStringWithClock(String tokenString, Clock clock) {
     try {
-      SignedJWT signedJWT = SignedJWT.parse(tokenString);
-      for (RSAKey key : getRSAKeys()) {
-        JWSVerifier verifier;
-        try {
-          verifier = new RSASSAVerifier(key);
-        } catch (JOSEException e) {
-          throw new RuntimeException("Error when verifying token", e);
-        }
-        try {
-          if (!signedJWT.verify(verifier)) continue;
-          Optional<Token> maybeToken = verifyClaimsSet(signedJWT.getJWTClaimsSet(), clock);
-          if (maybeToken.isPresent()) return maybeToken;
-        } catch (JOSEException e) {}
-      }
-      return Optional.empty();
+      return verifyJWTWithClock(tokenString, Clock.systemUTC());
     } catch (ParseException e) {
       return verifyPersonalAccessToken(tokenString);
     }
   }
 
-  public Optional<Token> verifyPersonalAccessToken(String tokenString){
+  public Optional<Token> verifyJWTWithClock(String tokenString, Clock clock) throws ParseException {
+    SignedJWT signedJWT = SignedJWT.parse(tokenString);
+    JWTClaimsSet jwtClaimsSet = signedJWT.getJWTClaimsSet();
+    return verifySignedJWTWithClock(signedJWT, jwtClaimsSet, clock);
+  }
+
+  public Optional<Token> verifyPersonalAccessToken(String tokenString) {
     Optional<String> userId = personalAccessTokenFetcher.getPersonalAccessToken(tokenString);
     Optional<Token> token;
     if(userId.isPresent())
@@ -87,6 +75,22 @@ public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
       token = Optional.empty();
 
     return token;
+  }
+
+  protected Optional<Token> verifySignedJWTWithClock(SignedJWT signedJWT, JWTClaimsSet jwtClaimsSet, Clock clock) {
+    for (RSAKey key : getRSAKeys()) {
+      try {
+        JWSVerifier verifier = new RSASSAVerifier(key);
+         try {
+           if (!signedJWT.verify(verifier)) continue;
+           Optional<Token> maybeToken = verifyClaimsSet(jwtClaimsSet, clock);
+           if (maybeToken.isPresent()) return maybeToken;
+         } catch (JOSEException e) {}
+      } catch (JOSEException e) {
+        throw new RuntimeException("Error when verifying token", e);
+      }
+    }
+      return Optional.empty();
   }
 
   private Optional<Token> verifyClaimsSet(JWTClaimsSet claims, Clock clock) {

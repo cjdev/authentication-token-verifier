@@ -13,10 +13,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Optional;
 
-public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher{
+public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher {
 
     private URL authorizationServiceUrl;
-    public PersonalAccessTokenReal(URL authorizationServiceUrl){
+    public PersonalAccessTokenReal(URL authorizationServiceUrl) {
         this.authorizationServiceUrl = authorizationServiceUrl;
     }
 

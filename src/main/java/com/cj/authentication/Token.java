@@ -28,7 +28,6 @@ public final class Token {
 
     if (appId != null ? !appId.equals(token.appId) : token.appId != null) return false;
     return userId != null ? userId.equals(token.userId) : token.userId == null;
-
   }
 
   @Override

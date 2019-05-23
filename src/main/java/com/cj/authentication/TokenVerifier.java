@@ -1,6 +1,8 @@
 package com.cj.authentication;
 
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -114,14 +116,14 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   }
 
   @Override
-  public Optional<Token> verifyTokenStringWithClock(String tokenString, Clock clock) {
+  protected Optional<Token> verifySignedJWTWithClock(SignedJWT signedJWT, JWTClaimsSet jwtClaimsSet, Clock clock) {
     if (uncaughtRefreshException != null) {
       throw new RuntimeException("Uncaught internal error when fetching public keys", uncaughtRefreshException);
     }
     if (numSuccessiveRefreshFailures.get() >= 5) {
       throw new RuntimeException("Too many successive failures fetching public keys", lastRefreshException);
     }
-    return super.verifyTokenStringWithClock(tokenString, clock);
+    return super.verifySignedJWTWithClock(signedJWT, jwtClaimsSet, clock);
   }
 
   @Override
