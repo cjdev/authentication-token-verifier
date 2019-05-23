@@ -9,6 +9,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import java.io.IOException;
 import java.security.Security;
 import java.text.ParseException;
 import java.time.Clock;
@@ -67,11 +68,15 @@ public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
   }
 
   public Optional<Token> verifyPersonalAccessToken(String tokenString) {
-    Optional<String> userId = personalAccessTokenFetcher.getPersonalAccessToken(tokenString);
-    if(userId.isPresent())
-      return Optional.of(new Token(Optional.empty(), userId));
-    else
-      return Optional.empty();
+    try {
+      Optional<String> userId = personalAccessTokenFetcher.getPersonalAccessToken(tokenString);
+      if (userId.isPresent())
+        return Optional.of(new Token(Optional.empty(), userId));
+      else
+        return Optional.empty();
+    } catch (IOException e) {
+      throw new RuntimeException("Error when verifying token", e);
+    }
   }
 
   protected Optional<Token> verifySignedJWTWithClock(SignedJWT signedJWT, JWTClaimsSet jwtClaimsSet, Clock clock) {

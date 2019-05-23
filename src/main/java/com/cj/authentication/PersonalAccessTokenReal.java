@@ -21,33 +21,26 @@ public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher {
     }
 
     @Override
-    public Optional<String> getPersonalAccessToken(String tokenString) {
-        Optional<JSONObject> json = urlToJson(authorizationServiceUrl, tokenString);
-
-        if(json.isPresent())
-            return Optional.of(json.get().getString("userId"));
-        else
-            return Optional.empty();
+    public Optional<String> getPersonalAccessToken(String tokenString) throws IOException {
+        return urlToJson(authorizationServiceUrl, tokenString).map(json -> json.getString("userId"));
     }
 
-    public static Optional<JSONObject> urlToJson(URL url, String tokenString) {
+    private static Optional<JSONObject> urlToJson(URL url, String tokenString) throws IOException {
         HttpGet httpget = new HttpGet(url.toString());
         httpget.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenString);
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            ResponseHandler<Optional<JSONObject>> responseHandler = response -> {
-                int status = response.getStatusLine().getStatusCode();
-                if (status >= 200 && status < 300) {
-                    HttpEntity entity = response.getEntity();
-                    String jsonString =  entity != null ? EntityUtils.toString(entity) : null;
-
+        ResponseHandler<Optional<JSONObject>> responseHandler = response -> {
+            int status = response.getStatusLine().getStatusCode();
+            if (status >= 200 && status < 300) {
+                HttpEntity entity = response.getEntity();
+                if (entity != null) {
+                    String jsonString = EntityUtils.toString(entity);
                     return Optional.of(new JSONObject(jsonString));
-                } else {
-                    return Optional.empty();
                 }
-            };
-            return httpClient.execute(httpget, responseHandler);
-        } catch (IOException e) {
+            }
             return Optional.empty();
+        };
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            return httpClient.execute(httpget, responseHandler);
         }
     }
 }
