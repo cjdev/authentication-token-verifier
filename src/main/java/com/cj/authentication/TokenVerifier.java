@@ -10,6 +10,7 @@ import java.net.URL;
 import java.text.ParseException;
 import java.time.Clock;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -33,7 +34,7 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
     }
   }
 
-  private volatile boolean isInitialized = false;
+  private volatile AtomicBoolean isInitialized = new AtomicBoolean(false);
   private final URL keySetUrl;
   private final Object refreshKeysMonitor = new Object();
   private volatile boolean refreshShouldStop = false;
@@ -82,12 +83,11 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
    * method, subsequent calls will have no effect.
    */
   public void init() {
-    if (!isInitialized) {
-      isInitialized = true;
+    if (!isInitialized.getAndSet(true)) {
       try {
         this.keySet = fetchPublicKeys();
       } catch (IOException | ParseException e) {
-        isInitialized = false;
+        isInitialized.set(false);
         throw new RuntimeException("Error when performing initial fetch of public keys", e);
       }
 
