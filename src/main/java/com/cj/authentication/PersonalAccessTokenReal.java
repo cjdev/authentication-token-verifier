@@ -31,10 +31,9 @@ public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher {
     }
 
     public static Optional<JSONObject> urlToJson(URL url, String tokenString) {
-        CloseableHttpClient httpclient = HttpClients.createDefault();
         HttpGet httpget = new HttpGet(url.toString());
         httpget.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + tokenString);
-        try {
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             ResponseHandler<Optional<JSONObject>> responseHandler = response -> {
                 int status = response.getStatusLine().getStatusCode();
                 if (status >= 200 && status < 300) {
@@ -46,7 +45,7 @@ public class PersonalAccessTokenReal implements PersonalAccessTokenFetcher {
                     return Optional.empty();
                 }
             };
-            return httpclient.execute(httpget, responseHandler);
+            return httpClient.execute(httpget, responseHandler);
         } catch (IOException e) {
             return Optional.empty();
         }

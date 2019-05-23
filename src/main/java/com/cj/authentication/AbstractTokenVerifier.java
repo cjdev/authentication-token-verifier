@@ -68,13 +68,10 @@ public abstract class AbstractTokenVerifier implements TokenVerifierInterface {
 
   public Optional<Token> verifyPersonalAccessToken(String tokenString) {
     Optional<String> userId = personalAccessTokenFetcher.getPersonalAccessToken(tokenString);
-    Optional<Token> token;
     if(userId.isPresent())
-      token = Optional.of(new Token(Optional.empty(), userId));
+      return Optional.of(new Token(Optional.empty(), userId));
     else
-      token = Optional.empty();
-
-    return token;
+      return Optional.empty();
   }
 
   protected Optional<Token> verifySignedJWTWithClock(SignedJWT signedJWT, JWTClaimsSet jwtClaimsSet, Clock clock) {
