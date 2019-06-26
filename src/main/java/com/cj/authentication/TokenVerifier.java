@@ -27,8 +27,8 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
 
   static {
     try {
-      CJ_IO_URL_PUBLIC_KEYS = new URL("https://production-io.p.cjpowered.com/public-keys");
-      TOKEN_VERIFY_URL = new URL("https://production-iam.p.cjpowered.com/token/verify");
+      CJ_IO_URL_PUBLIC_KEYS = new URL("https://id.api.cj.com/public-keys");
+      TOKEN_VERIFY_URL = new URL("https://id.api.cj.com/token/verify");
     } catch (MalformedURLException e) {
       throw new RuntimeException(e);
     }
@@ -59,7 +59,7 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
   }
 
   /**
-   * Creates a token verifier that fetches keys from the default location, {@code https://production-io.p.cjpowered.com/public-keys}.
+   * Creates a token verifier that fetches keys from the default location, {@code https://id.api.cj.com/public-keys}.
    */
   public TokenVerifier(URL keySetUrl) {
     this(keySetUrl, new PersonalAccessTokenReal(TOKEN_VERIFY_URL));

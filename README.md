@@ -15,7 +15,7 @@ To use this library, add it to your application’s pom.xml:
 When your application starts up, create an instance of `com.cj.authentication.TokenVerifier`. You must initialize the `TokenVerifier` with a call to `TokenVerifier#init` before verifying tokens. Each instance of `TokenVerifier` will spawn a background thread, so you will likely want to share a single instance between threads of a multi-threaded application. Since `TokenVerifier` implements `AutoCloseable`, it can be created within a try-with-resources block to ensure the background thread is automatically shut down when it goes out of scope:
 
 ```java
-try (TokenVerifier tokenVerifier = new TokenVerifier(new URL("https://staging-io.d.cjpowered.com/public-keys"))) {
+try (TokenVerifier tokenVerifier = new TokenVerifier(new URL("https://id.api.cj.com/public-keys"))) {
   // ...
 }
 ```
