@@ -25,3 +25,7 @@ Now you can call `TokenVerifier#verifyTokenString` to verify a token. If the tok
 For an example project that uses this library, see [authentication-token-sample-consumer][].
 
 [authentication-token-sample-consumer]: http://github.com/cjdev/authentication-token-sample-consumer
+
+To deploy to Ad Systems' publicly accessible M2 repo in an S3 bucket:
+ * set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY values (ask Ad Systems for values)
+ * run `mvn deploy -P cj-adsystems-m2`

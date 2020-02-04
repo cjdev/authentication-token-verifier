@@ -63,7 +63,31 @@
                 </executions>
             </plugin>
         </plugins>
+        <extensions>
+            <extension>
+                <groupId>org.springframework.build</groupId>
+                <artifactId>aws-maven</artifactId>
+                <version>5.0.0.RELEASE</version>
+            </extension>
+        </extensions>
     </build>
+    <profiles>
+        <profile>
+            <id>cj-adsystems-m2</id>
+            <properties>
+            </properties>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>adsystems-s3-snapshot</id>
+                    <url>s3://cj-adsystems-m2/snapshot</url>
+                </snapshotRepository>
+                <repository>
+                    <id>adsystems-s3-release</id>
+                    <url>s3://cj-adsystems-m2/release</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+    </profiles>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
