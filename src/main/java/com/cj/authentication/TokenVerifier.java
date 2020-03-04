@@ -44,6 +44,8 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
 
   private volatile JWKSet keySet;
 
+  private volatile Thread refreshKeysThread;
+
   /**
    * Creates a token verifier that fetches keys from the provided URL.
    *
@@ -69,29 +71,29 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
     this(CJ_IO_URL_PUBLIC_KEYS, new PersonalAccessTokenReal(TOKEN_VERIFY_URL));
   }
 
-  private JWKSet fetchPublicKeys() throws IOException, ParseException {
-    return JWKSet.load(keySetUrl);
+  private synchronized void fetchPublicKeys() throws IOException, ParseException {
+    int connectTimeout = 5000;
+    int readTimeout = 5000;
+    int infiniteSize = 0;
+    keySet = JWKSet.load(keySetUrl, connectTimeout, readTimeout, infiniteSize);
   }
 
   @Override
   protected JWKSet getPublicKeys() {
+    // if init() fails, keySet will still be null, so try again
+    if (keySet == null) {
+        try {
+          fetchPublicKeys();
+        } catch (Exception e) {
+          throw new RuntimeException("Error when fetching public keys", e);
+        }
+    }
     return keySet;
   }
 
-  /**
-   * Initializes the TokenVerifier and spawns a background thread to refresh public keys. After the first call to this
-   * method, subsequent calls will have no effect.
-   */
-  public void init() {
-    if (!isInitialized.getAndSet(true)) {
-      try {
-        this.keySet = fetchPublicKeys();
-      } catch (IOException | ParseException e) {
-        isInitialized.set(false);
-        throw new RuntimeException("Error when performing initial fetch of public keys", e);
-      }
-
-      Thread refreshKeysThread = new Thread(() -> {
+  private void startRefreshThread() {
+    if (refreshKeysThread == null) {
+      refreshKeysThread = new Thread(() -> {
         synchronized (refreshKeysMonitor) {
           while (!refreshShouldStop) {
             try {
@@ -100,9 +102,9 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
               continue;
             }
             try {
-              keySet = fetchPublicKeys();
+              fetchPublicKeys();
               numSuccessiveRefreshFailures.set(0);
-            } catch (IOException | ParseException e) {
+            } catch (Exception e) {
               lastRefreshException = e;
               numSuccessiveRefreshFailures.incrementAndGet();
             }
@@ -112,6 +114,22 @@ public final class TokenVerifier extends AbstractTokenVerifier implements AutoCl
       refreshKeysThread.setDaemon(true);
       refreshKeysThread.setUncaughtExceptionHandler((t, e) -> uncaughtRefreshException = e);
       refreshKeysThread.start();
+    }
+  }
+
+  /**
+   * Initializes the TokenVerifier and spawns a background thread to refresh public keys. After the first call to this
+   * method, subsequent calls will have no effect.
+   */
+  public void init() {
+    if (!isInitialized.getAndSet(true)) {
+      startRefreshThread();
+      try {
+        fetchPublicKeys();
+      } catch (Exception e) {
+        isInitialized.set(false);
+        throw new RuntimeException("init() failed, error when fetching public keys", e);
+      }
     }
   }
 
